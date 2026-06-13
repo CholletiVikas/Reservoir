@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reservoir Report Generator</title>
+    <style>
+        :root {
+            --bg: #f4f8fc;
+            --surface: #ffffff;
+            --primary: #2555b4;
+            --primary-soft: #e8efff;
+            --accent: #1f9d8c;
+            --text: #1c2633;
+            --muted: #64748b;
+            --border: #d2dde9;
+            --shadow: 0 20px 45px rgba(32, 53, 88, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: linear-gradient(180deg, #eef5fc 0%, #f8fbff 100%);
+            color: var(--text);
+        }
+
+        .page-wrapper {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 32px 16px;
+        }
+
+        .panel {
+            width: min(1100px, 100%);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 32px 36px;
+            border-bottom: 1px solid #ecf2f7;
+            background: linear-gradient(90deg, rgba(37,85,180,0.07) 0%, rgba(255,255,255,0.9) 100%);
+        }
+
+        .panel-header h1 {
+            margin: 0;
+            font-size: clamp(1.9rem, 2.4vw, 2.6rem);
+            letter-spacing: -0.03em;
+        }
+
+        .panel-header p {
+            margin: 10px 0 0;
+            color: var(--muted);
+            font-size: 1rem;
+            max-width: 680px;
+            line-height: 1.7;
+        }
+
+        .panel-body {
+            padding: 32px 36px 40px;
+            display: grid;
+            gap: 28px;
+        }
+
+        form {
+            display: grid;
+            gap: 18px;
+        }
+
+        label {
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 280px;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 18px;
+            resize: vertical;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.98rem;
+            line-height: 1.6;
+            color: #172430;
+            background: #fbfdff;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(37, 85, 180, 0.1);
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            align-items: center;
+        }
+
+        .button {
+            border: none;
+            border-radius: 14px;
+            padding: 14px 24px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+        }
+
+        .button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 28px rgba(37, 85, 180, 0.14);
+        }
+
+        .button-primary {
+            background: var(--primary);
+            color: #ffffff;
+        }
+
+        .button-secondary {
+            background: var(--primary-soft);
+            color: var(--primary);
+        }
+
+        .summary {
+            display: grid;
+            gap: 16px;
+        }
+
+        .summary-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .summary-meta h2 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: var(--text);
+        }
+
+        .summary-meta strong {
+            color: var(--accent);
+        }
+
+        .table-card {
+            overflow-x: auto;
+            border-radius: 18px;
+            border: 1px solid #e6ecf3;
+            background: #ffffff;
+            padding: 18px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 520px;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 16px 14px;
+            border-bottom: 1px solid #f0f4f9;
+        }
+
+        th {
+            background: #f4f8fc;
+            color: #20314d;
+            font-weight: 700;
+        }
+
+        tr:hover {
+            background: #fbfdff;
+        }
+
+        .download-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 22px;
+            border-radius: 14px;
+            background: var(--accent);
+            color: #ffffff;
+            text-decoration: none;
+            font-weight: 700;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .download-link:hover {
+            background: #187a6c;
+            transform: translateY(-1px);
+        }
+
+        @media (max-width: 760px) {
+            .panel-header,
+            .panel-body {
+                padding-left: 20px;
+                padding-right: 20px;
+            }
+
+            textarea {
+                min-height: 220px;
+            }
+
+            .actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .summary-meta {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-wrapper">
+        <main class="panel">
+            <section class="panel-header">
+                <h1>Reservoir Report Generator</h1>
+                <p>Paste raw WhatsApp message text, preview the parsed reservoir data, and export a polished Excel report in one easy flow.</p>
+            </section>
+
+            <section class="panel-body">
+                <form method="POST">
+                    <div>
+                        <label for="message">WhatsApp message input</label>
+                        <textarea id="message" name="message" placeholder="Paste WhatsApp messages here">{{message}}</textarea>
+                    </div>
+
+                    <div class="actions">
+                        <button class="button button-primary" type="submit" name="action" value="preview">Preview Data</button>
+                        <button class="button button-secondary" type="submit" name="action" value="generate">Generate Excel</button>
+                    </div>
+                </form>
+
+                <div class="summary">
+                    <div class="summary-meta">
+                        <h2>Date: <strong>{{date}}</strong></h2>
+                        {% if download_file %}
+                        <a class="download-link" href="/download/{{download_file}}">Download Excel</a>
+                        {% endif %}
+                    </div>
+
+                    <div class="table-card">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Reservoir</th>
+                                    <th>Level</th>
+                                    <th>Storage</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {{table|safe}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>
