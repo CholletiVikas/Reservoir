@@ -164,10 +164,13 @@ def parse_messages(text):
 def home():
 
     table_html = ""
+    missing_html = ""
     date = ""
     message = ""
     preview_status = ""
     download_file = ""
+    data_count = 0
+    missing_count = 0
 
     if request.method == "POST":
 
@@ -177,6 +180,9 @@ def home():
 
         date, data = parse_messages(message)
 
+        # Load template names for comparison
+        template_names = load_template_names()
+
         for reservoir, values in data.items():
 
             table_html += f"""
@@ -184,6 +190,20 @@ def home():
                 <td>{reservoir}</td>
                 <td>{values[0]}</td>
                 <td>{values[1]}</td>
+            </tr>
+            """
+
+        data_count = len(data)
+
+        # Find missing reservoirs
+        missing_reservoirs = [r for r in template_names if r not in data]
+        missing_count = len(missing_reservoirs)
+
+        for reservoir in missing_reservoirs:
+            missing_html += f"""
+            <tr>
+                <td>{reservoir}</td>
+                <td colspan="2" style="text-align: center; color: #9b1c1c; font-weight: 600;">No data</td>
             </tr>
             """
 
@@ -272,6 +292,10 @@ def home():
     return render_template(
         "index.html",
         table=table_html,
+        missing_table=missing_html,
+        data_count=data_count,
+        missing_count=missing_count,
+        preview_status=preview_status,
         date=date,
         message=message,
         download_file=download_file
