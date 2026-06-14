@@ -260,6 +260,12 @@
                         {% endif %}
                     </div>
 
+                    {% if preview_status %}
+                    <div class="preview-status" style="color: #9b1c1c; font-weight: 700; margin-bottom: 14px;">
+                        {{ preview_status }}
+                    </div>
+                    {% endif %}
+
                     <div class="table-card">
                         <table>
                             <thead>
