@@ -2,15 +2,26 @@ from flask import Flask, render_template, request, send_from_directory
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
 import difflib
+import logging
 import re
 import os
 
 app = Flask(__name__)
 
+# ---------------------------------------------------------------------------
+# Logging configuration: detailed logs for every action in this app.
+# ---------------------------------------------------------------------------
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+)
+logger = logging.getLogger("reservoir")
+
 OUTPUT_FOLDER = "output"
 TEMPLATE_FILE = "Master Templete.xlsx"
 
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+logger.info("App starting. OUTPUT_FOLDER='%s', TEMPLATE_FILE='%s'", OUTPUT_FOLDER, TEMPLATE_FILE)
 
 
 def normalize_name(name):
@@ -18,6 +29,7 @@ def normalize_name(name):
 
 
 def load_template_names():
+    logger.debug("Loading template names from '%s'", TEMPLATE_FILE)
     wb = load_workbook(TEMPLATE_FILE)
     sheet = wb.active
     template_names = []
@@ -27,6 +39,7 @@ def load_template_names():
         if value is not None:
             template_names.append(str(value).strip())
 
+    logger.debug("Loaded %d template reservoir names", len(template_names))
     return template_names
 
 
@@ -137,11 +150,15 @@ def extract_reservoir_entries(text, template_names):
     entries = {}
 
     blocks = find_reservoir_blocks(text, template_names)
+    logger.debug("Found %d reservoir block(s) in message", len(blocks))
     for block in blocks:
         block_text = '\n'.join(block['lines'])
         level, storage = extract_values_from_block(block_text, block['name'])
         if level is not None and storage is not None:
+            logger.info("Parsed '%s': level=%s, storage=%s", block['name'], level, storage)
             entries[block['name']] = [level, storage]
+        else:
+            logger.warning("Could not extract values for '%s'", block['name'])
 
     return entries
 
@@ -150,13 +167,16 @@ def parse_messages(text):
     data = {}
     date = ""
 
+    logger.info("Parsing message (%d chars)", len(text or ""))
     date_match = re.search(r'(\d{2}[.-]\d{2}[.-]\d{4})', text)
     if date_match:
         date = date_match.group(1).replace("-", ".")
+    logger.info("Date detected: '%s'", date)
 
     template_names = load_template_names()
     data.update(extract_reservoir_entries(text, template_names))
 
+    logger.info("Parsing complete: %d reservoir(s) with data", len(data))
     return date, data
 
 
@@ -172,11 +192,14 @@ def home():
     data_count = 0
     missing_count = 0
 
+    logger.info("%s / request received", request.method)
+
     if request.method == "POST":
 
         action = request.form.get("action")
 
         message = request.form.get("message", "")
+        logger.info("Action='%s' submitted; message length=%d", action, len(message))
 
         date, data = parse_messages(message)
 
@@ -198,6 +221,9 @@ def home():
         # Find missing reservoirs
         missing_reservoirs = [r for r in template_names if r not in data]
         missing_count = len(missing_reservoirs)
+        logger.info("Preview built: %d with data, %d missing (no data)", data_count, missing_count)
+        if missing_reservoirs:
+            logger.debug("Missing reservoirs: %s", ", ".join(missing_reservoirs))
 
         for reservoir in missing_reservoirs:
             missing_html += f"""
@@ -208,12 +234,14 @@ def home():
             """
 
         if not data:
+            logger.warning("No reservoir data found in the input message")
             preview_status = (
                 "No reservoir data found in the input. "
                 "Please check the message content and reservoir names."
             )
 
         if action == "generate":
+            logger.info("Generate Excel started for date='%s'", date)
 
             wb = load_workbook("Master Templete.xlsx")
 
@@ -243,9 +271,11 @@ def home():
                     storage = data[excel_name][1]
                     sheet[f'G{row}'] = level
                     sheet[f'H{row}'] = storage
+                    logger.info("Row %d '%s': G(level)=%s, H(storage MCFT)=%s", row, excel_name, level, storage)
                 else:
                     sheet[f'G{row}'] = "NA"
                     sheet[f'H{row}'] = "NA"
+                    logger.debug("Row %d '%s': no data -> NA", row, excel_name)
 
                 # Calculate Gross capacity in TMC from storage in H
                 h_value = sheet[f'H{row}'].value
@@ -268,11 +298,17 @@ def home():
                         remarks_cell.value = ""
                         if percentage > 85:
                             remarks_cell.fill = red_fill
+                            colour = "red"
                         elif 50 <= percentage <= 85:
                             remarks_cell.fill = yellow_fill
+                            colour = "yellow"
                         else:
                             remarks_cell.fill = green_fill
+                            colour = "green"
+                        logger.info("Row %d '%s': TMC=%s, %%filling=%.2f -> remarks=%s",
+                                    row, excel_name, sheet[f'I{row}'].value, percentage, colour)
                     except (ValueError, TypeError, ZeroDivisionError):
+                        logger.warning("Row %d '%s': could not compute %% filling", row, excel_name)
                         sheet[f'J{row}'] = "NA"
                 else:
                     sheet[f'J{row}'] = "NA"
@@ -286,6 +322,7 @@ def home():
             )
 
             wb.save(filepath)
+            logger.info("Excel generated and saved: '%s'", filepath)
 
             download_file = filename
 
@@ -304,7 +341,7 @@ def home():
 
 @app.route("/download/<filename>")
 def download(filename):
-
+    logger.info("Download requested: '%s'", filename)
     return send_from_directory(
         OUTPUT_FOLDER,
         filename,
